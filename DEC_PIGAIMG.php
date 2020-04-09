@@ -3,7 +3,7 @@
 $out_dir=".\\out"; // 出力ディレクトリ
 
 // メインプログラム
-echo "DEC_PIGAIMG Ver.01".PHP_EOL.PHP_EOL;
+echo "DEC_PIGAIMG Ver.02".PHP_EOL.PHP_EOL;
 if(isset($_SERVER{'pigaimg_path'})) {
 	$in_path=$_SERVER{'pigaimg_path'};
 } else {
@@ -87,7 +87,11 @@ switch($in_filetype) {
 				$grp_width=fread($in_handle,4);
 				$grp_height=fread($in_handle,4);
 				$grp_bpp=fread($in_handle,1);
-				switch(hexdec(bin2hex($grp_bpp))) {
+				$grp_width_dec=hexdec(bin2hex(bin_convert_endian($grp_width)));
+				$grp_height_dec=hexdec(bin2hex(bin_convert_endian($grp_height)));
+				$grp_bpp_dec=hexdec(bin2hex($grp_bpp));
+				$grp_rgb888_padding=$grp_width_dec%4;
+				switch($grp_bpp_dec) {
 					case 32:
 						$grp_r_a=grp_decompress($in_handle);
 					case 24:
@@ -108,8 +112,10 @@ switch($in_filetype) {
 					$out_body.=substr($grp_r_b,$p,1);
 					$out_body.=substr($grp_r_g,$p,1);
 					$out_body.=substr($grp_r_r,$p,1);
-					if(hexdec(bin2hex($grp_bpp))==32) {
+					if ($grp_bpp_dec==32) {
 						$out_body.=substr($grp_r_a,$p,1);
+					} else if(($p%$grp_width_dec)==($grp_width_dec-1)) {
+						$out_body.=str_repeat("\0",$grp_rgb888_padding);
 					}
 				}
 				break;
@@ -148,4 +154,12 @@ function grp_decompress(&$handle) {
 		}
 	}
 	return $retval;
+}
+
+function bin_convert_endian($bin_in) {
+	$bin_out="";
+	for ($c=(strlen($bin_in)-1);$c>=0;$c--) {
+		$bin_out.=substr($bin_in,$c,1);
+	}
+	return $bin_out;
 }
